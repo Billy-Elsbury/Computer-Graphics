@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class Model
@@ -10,8 +11,6 @@ public class Model
     List<Vector3> vertices;
     List<Vector2> texture_coordinates; //u and v Coords
     List<Vector3> normals;
-
-
     public Model()
     {
         vertices = new List<Vector3>();
@@ -42,24 +41,44 @@ public class Model
         
 
         //All Sides of Letter (18 triangles) 
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
-        faces.Add(new Vector3Int());
+        faces.Add(new Vector3Int(0, 1, 17));
+        faces.Add(new Vector3Int(1, 18, 17));
+        faces.Add(new Vector3Int(1, 2, 18));
+        faces.Add(new Vector3Int(2, 19, 18));
+        faces.Add(new Vector3Int(2, 3, 19));
+        faces.Add(new Vector3Int(3, 20, 19));
+        faces.Add(new Vector3Int(5, 6, 22));
+        faces.Add(new Vector3Int(6, 23, 22));
+        faces.Add(new Vector3Int(6, 7, 23));
+        faces.Add(new Vector3Int(7, 24, 23));
+        faces.Add(new Vector3Int(7, 25, 24));
+        faces.Add(new Vector3Int(8, 25, 7));
+        faces.Add(new Vector3Int(8, 17, 25));
+        faces.Add(new Vector3Int(0, 17, 8));
+
+        faces.Add(new Vector3Int(22, 21, 4));
+        faces.Add(new Vector3Int(22, 4, 5));
+        faces.Add(new Vector3Int(20, 3, 4));
+        faces.Add(new Vector3Int(20, 4, 21));
+
+        faces.Add(new Vector3Int(28, 26, 9));
+        faces.Add(new Vector3Int(28, 9, 11));
+        faces.Add(new Vector3Int(29, 10, 27));
+        faces.Add(new Vector3Int(29, 12, 10));
+        faces.Add(new Vector3Int(30, 15, 32));
+        faces.Add(new Vector3Int(30, 13, 15));
+        faces.Add(new Vector3Int(31, 33, 16));
+        faces.Add(new Vector3Int(31, 16, 14));
+
+        faces.Add(new Vector3Int(10, 9, 26));
+        faces.Add(new Vector3Int(10, 26, 27));
+        faces.Add(new Vector3Int(11, 12, 29));
+        faces.Add(new Vector3Int(11, 29, 28));
+        faces.Add(new Vector3Int(14, 13, 30));
+        faces.Add(new Vector3Int(14, 30, 31));
+        faces.Add(new Vector3Int(15, 16, 33));
+        faces.Add(new Vector3Int(15, 33, 32));
+
 
         //Back Face List (13 Triangles)
         faces.Add(new Vector3Int(18, 19, 26));
