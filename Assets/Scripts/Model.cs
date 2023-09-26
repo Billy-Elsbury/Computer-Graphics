@@ -6,9 +6,9 @@ using UnityEngine;
 
 public class Model
 {
-    List<Vector3Int> faces;
+    internal List<Vector3Int> faces;
     List<Vector3Int> texture_index_list; //3 coords for triangle on texture
-    List<Vector3> vertices;
+    internal List<Vector3> vertices;
     List<Vector2> texture_coordinates; //u and v Coords
     List<Vector3> normals;
     public Model()
