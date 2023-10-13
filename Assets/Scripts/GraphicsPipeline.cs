@@ -12,14 +12,14 @@ public class GraphicsPipeline : MonoBehaviour
         Model myModel = new Model();
         List<Vector4> verts = ConvertToHomg(myModel.vertices);
 
-        // myModel.CreateUnityGameObject(); 
+        myModel.CreateUnityGameObject(); 
         Vector3 axis = (new Vector3(-2, 1, 1)).normalized;
 
         Matrix4x4 matrixRotation = Matrix4x4.TRS(Vector3.zero, Quaternion.AngleAxis(17, axis), Vector3.one);
         Matrix4x4 matrixScale = Matrix4x4.TRS(Vector3.one, Quaternion.identity, new Vector3(5, 4, 4));
         Matrix4x4 matrixTranslation = Matrix4x4.TRS(new Vector3(-3, 1, 1), Quaternion.identity, Vector3.one);
         Matrix4x4 matrixViewing = Matrix4x4.LookAt(new Vector3(19, 3, 50), new Vector3(-5, 0, 3), new Vector3(1, 1, 0));
-        Matrix4x4 matrixProjection = Matrix4x4.Perspective(90, 16 / 9, 1, 1000);
+        Matrix4x4 matrixProjection = Matrix4x4.Perspective(90, 16 / 9, -1, 1000);
 
         SaveMatrixToFile(matrixRotation, "matrixRotation.txt");
         SaveMatrixToFile(matrixScale, "matrixScale.txt");
@@ -40,21 +40,31 @@ public class GraphicsPipeline : MonoBehaviour
 
 
         //World Transform Matrix Test
+
         Matrix4x4 worldTransformMatrix = matrixTranslation * matrixScale * matrixRotation;
         SaveMatrixToFile(worldTransformMatrix, "worldTransformMatrix.txt");
+
         List<Vector4> imageAfterWorldTransformMatrix = ApplyTransformation(verts, worldTransformMatrix);
         SaveVector4ListToFile(imageAfterWorldTransformMatrix, "imageAfterWorldTransformMatrix.txt");
 
 
+
+
         //Continue with Pipeline
+
         List<Vector4> viewVertices3D = ApplyTransformation(imageAfterTranslation, matrixViewing);
+        SaveVector4ListToFile(viewVertices3D, "imageAfterViewingMatrix.txt");
 
         List<Vector4> viewVertices2D = ApplyTransformation(viewVertices3D, matrixProjection);
+        SaveVector4ListToFile(viewVertices2D, "imageAfterProjectionMatrix.txt");
+
+        Matrix4x4 everythingMatrix = matrixProjection * matrixViewing * worldTransformMatrix;
+        SaveMatrixToFile(everythingMatrix, "everythingMatrix.txt");
+
+        List<Vector4> imageAfterEverythingMatrix = ApplyTransformation(verts, everythingMatrix);
+        SaveVector4ListToFile(imageAfterEverythingMatrix, "imageAfterEverythingMatrix.txt");
 
     }
-
-
-
 
     private List<Vector4> ConvertToHomg(List<Vector3> vertices)
     {
@@ -70,11 +80,11 @@ public class GraphicsPipeline : MonoBehaviour
     }
 
     private List<Vector4> ApplyTransformation
-        (List<Vector4> verts, Matrix4x4 tranformMatrix)
+         (List<Vector4> verts, Matrix4x4 transformMatrix)
     {
         List<Vector4> output = new List<Vector4>();
         foreach (Vector4 v in verts)
-        { output.Add(tranformMatrix * v); }
+        { output.Add(transformMatrix * v); }
 
         return output;
 
@@ -107,8 +117,6 @@ public class GraphicsPipeline : MonoBehaviour
             }
         }
     }
-
-
 
     // Update is called once per frame
     void Update()
