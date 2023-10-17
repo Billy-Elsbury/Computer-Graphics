@@ -64,6 +64,13 @@ public class GraphicsPipeline : MonoBehaviour
         List<Vector4> imageAfterEverythingMatrix = ApplyTransformation(verts, everythingMatrix);
         SaveVector4ListToFile(imageAfterEverythingMatrix, "imageAfterEverythingMatrix.txt");
 
+
+
+
+        Outcode outcode = new Outcode(new Vector2(3, -3));
+
+        print(outcode.outcodeString());
+
     }
 
     private List<Vector4> ConvertToHomg(List<Vector3> vertices)
