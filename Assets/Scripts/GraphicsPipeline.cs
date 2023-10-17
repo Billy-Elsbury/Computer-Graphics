@@ -79,6 +79,18 @@ public class GraphicsPipeline : MonoBehaviour
          * If the 'AND' of the coords IS 0000 there is more work to do...*/
 
 
+    private Vector2 LineIntercept(Vector2 startPoint, Vector2 endPoint, String viewportSide)
+    {
+        float m = (endPoint.y - startPoint.y) / (endPoint.x - startPoint.x);
+
+        if (viewportSide == "up") return new Vector2((startPoint.x + ((1 - startPoint.y) / m)), 1);
+        if (viewportSide == "down") return new Vector2((startPoint.x + ((-1 - startPoint.y) / m)), 1);
+        if (viewportSide == "left") return new Vector2(-1,(startPoint.y + (m*(-1 - startPoint.x))));
+        if (viewportSide == "right") return new Vector2(1, (startPoint.y + (m * (1 - startPoint.x))));
+
+        else return new Vector2(0, 0);
+    }
+
     private List<Vector4> ConvertToHomg(List<Vector3> vertices)
     {
         List<Vector4> output = new List<Vector4>();
