@@ -19,7 +19,7 @@ public class GraphicsPipeline : MonoBehaviour
         Matrix4x4 matrixScale = Matrix4x4.TRS(Vector3.one, Quaternion.identity, new Vector3(5, 4, 4));
         Matrix4x4 matrixTranslation = Matrix4x4.TRS(new Vector3(-3, 1, 1), Quaternion.identity, Vector3.one);
         Matrix4x4 matrixViewing = Matrix4x4.LookAt(new Vector3(19, 3, 50), new Vector3(-5, 0, 3), new Vector3(1, 1, 0));
-        Matrix4x4 matrixProjection = Matrix4x4.Perspective(90, 16 / 9, -1, 1000);
+        Matrix4x4 matrixProjection = Matrix4x4.Perspective(90, 16 / 9, 1, 1000);
 
         SaveMatrixToFile(matrixRotation, "matrixRotation.txt");
         SaveMatrixToFile(matrixScale, "matrixScale.txt");
@@ -40,29 +40,16 @@ public class GraphicsPipeline : MonoBehaviour
 
 
         //World Transform Matrix Test
-
         Matrix4x4 worldTransformMatrix = matrixTranslation * matrixScale * matrixRotation;
         SaveMatrixToFile(worldTransformMatrix, "worldTransformMatrix.txt");
-
         List<Vector4> imageAfterWorldTransformMatrix = ApplyTransformation(verts, worldTransformMatrix);
         SaveVector4ListToFile(imageAfterWorldTransformMatrix, "imageAfterWorldTransformMatrix.txt");
 
 
-
-
         //Continue with Pipeline
-
         List<Vector4> viewVertices3D = ApplyTransformation(imageAfterTranslation, matrixViewing);
-        SaveVector4ListToFile(viewVertices3D, "imageAfterViewingMatrix.txt");
 
         List<Vector4> viewVertices2D = ApplyTransformation(viewVertices3D, matrixProjection);
-        SaveVector4ListToFile(viewVertices2D, "imageAfterProjectionMatrix.txt");
-
-        Matrix4x4 everythingMatrix = matrixProjection * matrixViewing * worldTransformMatrix;
-        SaveMatrixToFile(everythingMatrix, "everythingMatrix.txt");
-
-        List<Vector4> imageAfterEverythingMatrix = ApplyTransformation(verts, everythingMatrix);
-        SaveVector4ListToFile(imageAfterEverythingMatrix, "imageAfterEverythingMatrix.txt");
 
 
 
@@ -72,6 +59,25 @@ public class GraphicsPipeline : MonoBehaviour
         print(outcode.outcodeString());
 
     }
+
+    private bool LineClip(ref Vector2 startPoint, ref Vector2 endPoint) 
+    {
+        Outcode startOutcode = new Outcode(startPoint);
+        Outcode endOutcode = new Outcode(endPoint);
+
+        Outcode viewportOutcode = new Outcode();
+
+        if ((startOutcode == viewportOutcode) && (endOutcode == viewportOutcode)) return true;
+        if ((startOutcode * endOutcode) != viewportOutcode) return false;
+        //If neither return, more work to do...
+
+
+    }
+    /*Get the outcodes of the two coordinates,
+         * If both outcodes are 0000 we can 'trivial accept' the coords
+         * If the 'AND' of the two outcodes IS NOT 0000 we can 'trivial reject'
+         * If the 'AND' of the coords IS 0000 there is more work to do...*/
+
 
     private List<Vector4> ConvertToHomg(List<Vector3> vertices)
     {
@@ -87,11 +93,11 @@ public class GraphicsPipeline : MonoBehaviour
     }
 
     private List<Vector4> ApplyTransformation
-         (List<Vector4> verts, Matrix4x4 transformMatrix)
+        (List<Vector4> verts, Matrix4x4 tranformMatrix)
     {
         List<Vector4> output = new List<Vector4>();
         foreach (Vector4 v in verts)
-        { output.Add(transformMatrix * v); }
+        { output.Add(tranformMatrix * v); }
 
         return output;
 
@@ -124,6 +130,8 @@ public class GraphicsPipeline : MonoBehaviour
             }
         }
     }
+
+
 
     // Update is called once per frame
     void Update()
