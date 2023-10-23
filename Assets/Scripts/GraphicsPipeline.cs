@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class GraphicsPipeline : MonoBehaviour
@@ -58,26 +59,74 @@ public class GraphicsPipeline : MonoBehaviour
 
         print(outcode.outcodeString());
 
+        Vector2 startPoint = new Vector2(-2, 1);
+        Vector2 endPoint = new Vector2(3, 0);
+
+        LineClip(ref startPoint, ref endPoint);
+
+        print(startPoint + " " + endPoint);
     }
 
-    private bool LineClip(ref Vector2 startPoint, ref Vector2 endPoint) 
+    private bool LineClip(ref Vector2 startPoint, ref Vector2 endPoint)
     {
         Outcode startOutcode = new Outcode(startPoint);
         Outcode endOutcode = new Outcode(endPoint);
 
         Outcode viewportOutcode = new Outcode();
 
-        if ((startOutcode == viewportOutcode) && (endOutcode == viewportOutcode)) return true;
+        if ((startOutcode + endOutcode == viewportOutcode)) return true; //Both Outcodes in viewport
         if ((startOutcode * endOutcode) != viewportOutcode) return false;
+        //Both have a 1 in common in outcodes so either both up, down, left, right, so won't be in viewport
+
         //If neither return, more work to do...
 
+        //if the code gets to here only concerned with clipping start
+        if (startOutcode == viewportOutcode) return LineClip(ref endPoint, ref startPoint);
 
-    }
-    /*Get the outcodes of the two coordinates,
+        if (startOutcode == new Outcode(true, false, false, false))
+        {
+            Vector2 hold = LineIntercept(startPoint, endPoint, "up");
+            if (new Outcode(hold) == viewportOutcode)
+            {
+                startPoint = hold;
+                return LineClip(ref endPoint, ref startPoint);
+            }
+        }
+        if (startOutcode == new Outcode(false, true, false, false))
+        {
+            Vector2 hold = LineIntercept(startPoint, endPoint, "down");
+            if (new Outcode(hold) == viewportOutcode)
+            {
+                startPoint = hold;
+                return LineClip(ref endPoint, ref startPoint);
+            }
+        }
+        if (startOutcode == new Outcode(false, false, true, false))
+        {
+            Vector2 hold = LineIntercept(startPoint, endPoint, "left");
+            if (new Outcode(hold) == viewportOutcode)
+            {
+                startPoint = hold;
+                return LineClip(ref endPoint, ref startPoint);
+            }
+        }
+        if (startOutcode == new Outcode(false, false, false, true))
+        {
+            Vector2 hold = LineIntercept(startPoint, endPoint, "right");
+            if (new Outcode(hold) == viewportOutcode)
+            {
+                startPoint = hold;
+                return LineClip(ref endPoint, ref startPoint);
+            }
+        }
+
+        return false; //means no intercept was found.
+
+            /*Get the outcodes of the two coordinates,
          * If both outcodes are 0000 we can 'trivial accept' the coords
          * If the 'AND' of the two outcodes IS NOT 0000 we can 'trivial reject'
          * If the 'AND' of the coords IS 0000 there is more work to do...*/
-
+    }
 
     private Vector2 LineIntercept(Vector2 startPoint, Vector2 endPoint, String viewportSide)
     {
@@ -88,8 +137,10 @@ public class GraphicsPipeline : MonoBehaviour
         if (viewportSide == "left") return new Vector2(-1,(startPoint.y + (m*(-1 - startPoint.x))));
         if (viewportSide == "right") return new Vector2(1, (startPoint.y + (m * (1 - startPoint.x))));
 
-        else return new Vector2(0, 0);
+        else throw new ArgumentOutOfRangeException(nameof(viewportSide), "The viewport Side is incorrect");
     }
+
+
 
     private List<Vector4> ConvertToHomg(List<Vector3> vertices)
     {
