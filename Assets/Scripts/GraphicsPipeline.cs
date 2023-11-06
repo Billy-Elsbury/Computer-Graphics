@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -133,11 +134,121 @@ public class GraphicsPipeline : MonoBehaviour
         float m = (endPoint.y - startPoint.y) / (endPoint.x - startPoint.x);
 
         if (viewportSide == "up") return new Vector2((startPoint.x + ((1 - startPoint.y) / m)), 1);
-        if (viewportSide == "down") return new Vector2((startPoint.x + ((-1 - startPoint.y) / m)), 1);
+        if (viewportSide == "down") return new Vector2((startPoint.x + ((-1 - startPoint.y) / m)), -1);
         if (viewportSide == "left") return new Vector2(-1,(startPoint.y + (m*(-1 - startPoint.x))));
         if (viewportSide == "right") return new Vector2(1, (startPoint.y + (m * (1 - startPoint.x))));
 
         else throw new ArgumentOutOfRangeException(nameof(viewportSide), "The viewport Side is incorrect");
+    }
+
+    public class LineDrawingTester
+    {
+        public static void Main()
+        {
+            // Create a LineDrawing instance
+            LineDrawing lineDrawing = new LineDrawing();
+
+            // Define start and end points for the line
+            Vector2Int start = new Vector2Int(0, 0);
+            Vector2Int end = new Vector2Int(5, 3);
+
+            // Get the list of points that make up the line
+            List<Vector2Int> linePoints = lineDrawing.Bresenham(start, end);
+
+            // Print the points
+            Console.WriteLine("Line points from (" + start.x + ", " + start.y + ") to (" + end.x + ", " + end.y + "):");
+            foreach (Vector2Int point in linePoints)
+            {
+                Console.WriteLine("(" + point.x + ", " + point.y + ")");
+            }
+        }
+    }
+
+    public struct Vector2Int
+    {
+        public int x;
+        public int y;
+
+        public Vector2Int(int x, int y)
+        {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    public class LineDrawing
+    {
+        // Bresenham's line drawing algorithm
+        public List<Vector2Int> Bresenham(Vector2Int start, Vector2Int end)
+        {
+            List<Vector2Int> output = new List<Vector2Int>();
+
+            int dx = end.x - start.x;
+            // If dx is negative, flip the line
+            if (dx < 0)
+                return Bresenham(end, start);
+
+            int dy = end.y - start.y;
+            // If dy is negative, line goes up. 
+            if (dy < 0)
+                return NegY(Bresenham(NegY(start), NegY(end)));
+
+            // If dy > dx swap the axes.
+            if ((dy) > (dx))
+                return SwapXY(Bresenham(SwapXY(start), SwapXY(end)));
+
+            int ddx = 2 * dy; 
+            int ddy = 2 * (dy - dx);
+            int p = 2 * dy - dx; 
+
+            // Loop over the x-axis and calculate y-axis values.
+            for (int x = start.x, y = start.y; x <= end.x; x++)
+            {
+                output.Add(new Vector2Int(x, y));
+                if (p < 0)
+                {
+                    p += ddx; // Move to next pixel on the right
+                }
+                else
+                {
+                    p += ddy; // Move to next pixel diagonal
+                    y++;
+                }
+            }
+            return output;
+        }
+
+        private List<Vector2Int> SwapXY(List<Vector2Int> vector2Ints)
+        {
+            List<Vector2Int> output = new List<Vector2Int>();
+            foreach (Vector2Int v in vector2Ints)
+                output.Add(SwapXY(v));
+
+            return output;
+        }
+
+        private List<Vector2Int> NegY(List<Vector2Int> vector2Ints)
+        {
+            List<Vector2Int> output = new List<Vector2Int>();
+            foreach (Vector2Int v in vector2Ints)
+                output.Add(NegY(v));
+
+            return output;
+        }
+
+        // For negative slopes
+        private Vector2Int NegY(Vector2Int point)
+        {
+            return new Vector2Int(point.x, -point.y);
+        }
+
+        
+
+        // Swap x and y for lines where slope > 1
+        private Vector2Int SwapXY(Vector2Int point)
+        {
+            return new Vector2Int(point.y, point.x);
+        }
     }
 
 
@@ -193,6 +304,7 @@ public class GraphicsPipeline : MonoBehaviour
             }
         }
     }
+
 
 
 
