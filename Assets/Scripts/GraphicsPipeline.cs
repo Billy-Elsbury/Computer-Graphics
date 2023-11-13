@@ -5,16 +5,25 @@ using System.Drawing;
 using System.IO;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Experimental.GlobalIllumination;
 
 public class GraphicsPipeline : MonoBehaviour
 {
+    Renderer ourScreen;
+
+    int textureWidth = 255;
+    int textureHeight = 255;
+
     // Start is called before the first frame update
+    public
     void Start()
     {
+        ourScreen = FindObjectOfType<Renderer>();
+
         Model myModel = new Model();
         List<Vector4> verts = ConvertToHomg(myModel.vertices);
 
-        myModel.CreateUnityGameObject(); 
+        myModel.CreateUnityGameObject();
         Vector3 axis = (new Vector3(-2, 1, 1)).normalized;
 
         Matrix4x4 matrixRotation = Matrix4x4.TRS(Vector3.zero, Quaternion.AngleAxis(17, axis), Vector3.one);
@@ -66,6 +75,93 @@ public class GraphicsPipeline : MonoBehaviour
         LineClip(ref startPoint, ref endPoint);
 
         print(startPoint + " " + endPoint);
+
+
+
+        //_____Drawing Lines on Texture_______________________________________
+
+
+
+        Vector2Int start = new Vector2Int(0, 0);
+        Vector2Int end = new Vector2Int(255, 255);
+
+        List<Vector2Int> linePoints = Bresenham(start, end);
+
+
+
+        // Draw the line on the texture
+        DrawLineOnTexture(linePoints, lineDrawnTexture, lineColor);
+    }
+
+    void Update()
+    {
+        Matrix4x4 matrixViewing = Matrix4x4.LookAt(new Vector3(0, 0, 10), new Vector3(0, 0, 0), new Vector3(0, 1, 0));
+        Matrix4x4 matrixProjection = Matrix4x4.Perspective(90, ((float)textureWidth / (float)textureHeight), 1, 1000);
+        Matrix4x4 matrixWorld = Matrix4x4.identity;
+
+        Model myModel = new Model();
+        List<Vector4> verts = ConvertToHomg(myModel.vertices);
+
+        // Multiply in reverse order, points are multiplied on the right, A * v
+        Matrix4x4 matrixSuper = matrixProjection * matrixViewing * matrixWorld;
+
+        List<Vector4> transformedVerts = divideByZ(ApplyTransformation(verts, matrixSuper));
+
+        List<Vector2Int> pixelPoints = pixelise(transformedVerts, textureWidth, textureHeight);
+
+
+
+        Texture2D lineDrawnTexture = new Texture2D(textureWidth, textureHeight);
+
+        ourScreen.material.mainTexture = lineDrawnTexture;
+
+        // Set the color for the line
+        UnityEngine.Color lineColor = UnityEngine.Color.red;
+
+        foreach (Vector3Int face in myModel.faces)
+        {
+            clipandPlot(pixelPoints[face.x], pixelPoints[face.y],lineDrawnTexture);
+        }
+    }
+
+    //Converted to pixels before clipping. FIX
+    private void clipandPlot(Vector2Int startIn, Vector2Int endIn, Texture2D lineDrawnTexture)
+    { Vector2Int start = startIn;
+        Vector2Int end = endIn;
+        if (LineClip(ref start,ref end))
+
+
+    }
+
+    private List<Vector2Int> pixelise(List<Vector4> transformedVerts, int textureWidth, int textureHeight)
+    {
+        List<Vector2Int> output = new List<Vector2Int>();
+        foreach (Vector4 v in transformedVerts)
+        {
+            output.Add(pixelise(v, textureWidth, textureHeight));
+        }
+
+        return output;
+    }
+
+    private Vector2Int pixelise(Vector4 v, int textureWidth, int textureHeight)
+    {
+        int x = (int )((textureWidth - 1) * (v.x + 1) / 2);
+        int y = (int)((textureHeight - 1) * (v.y + 1) / 2);
+        return new Vector2Int( x,y );
+    }
+
+    //
+    private List<Vector4> divideByZ(List<Vector4> vector4s)
+    {
+        List<Vector4> output = new List<Vector4>();
+
+        foreach (Vector4 v in vector4s) 
+        {
+            output.Add(new Vector4(v.x / v.w, v.y / v.w, v.z, v.w));
+        }
+
+        return output;
     }
 
     private bool LineClip(ref Vector2 startPoint, ref Vector2 endPoint)
@@ -123,10 +219,10 @@ public class GraphicsPipeline : MonoBehaviour
 
         return false; //means no intercept was found.
 
-            /*Get the outcodes of the two coordinates,
-         * If both outcodes are 0000 we can 'trivial accept' the coords
-         * If the 'AND' of the two outcodes IS NOT 0000 we can 'trivial reject'
-         * If the 'AND' of the coords IS 0000 there is more work to do...*/
+        /*Get the outcodes of the two coordinates,
+     * If both outcodes are 0000 we can 'trivial accept' the coords
+     * If the 'AND' of the two outcodes IS NOT 0000 we can 'trivial reject'
+     * If the 'AND' of the coords IS 0000 there is more work to do...*/
     }
 
     private Vector2 LineIntercept(Vector2 startPoint, Vector2 endPoint, String viewportSide)
@@ -135,33 +231,10 @@ public class GraphicsPipeline : MonoBehaviour
 
         if (viewportSide == "up") return new Vector2((startPoint.x + ((1 - startPoint.y) / m)), 1);
         if (viewportSide == "down") return new Vector2((startPoint.x + ((-1 - startPoint.y) / m)), -1);
-        if (viewportSide == "left") return new Vector2(-1,(startPoint.y + (m*(-1 - startPoint.x))));
+        if (viewportSide == "left") return new Vector2(-1, (startPoint.y + (m * (-1 - startPoint.x))));
         if (viewportSide == "right") return new Vector2(1, (startPoint.y + (m * (1 - startPoint.x))));
 
         else throw new ArgumentOutOfRangeException(nameof(viewportSide), "The viewport Side is incorrect");
-    }
-
-    public class LineDrawingTester
-    {
-        public static void Main()
-        {
-            // Create a LineDrawing instance
-            LineDrawing lineDrawing = new LineDrawing();
-
-            // Define start and end points for the line
-            Vector2Int start = new Vector2Int(0, 0);
-            Vector2Int end = new Vector2Int(5, 3);
-
-            // Get the list of points that make up the line
-            List<Vector2Int> linePoints = lineDrawing.Bresenham(start, end);
-
-            // Print the points
-            Console.WriteLine("Line points from (" + start.x + ", " + start.y + ") to (" + end.x + ", " + end.y + "):");
-            foreach (Vector2Int point in linePoints)
-            {
-                Console.WriteLine("(" + point.x + ", " + point.y + ")");
-            }
-        }
     }
 
     public struct Vector2Int
@@ -176,82 +249,87 @@ public class GraphicsPipeline : MonoBehaviour
         }
     }
 
-    public class LineDrawing
+    // Bresenham's line drawing algorithm
+    public List<Vector2Int> Bresenham(Vector2Int start, Vector2Int end)
     {
-        // Bresenham's line drawing algorithm
-        public List<Vector2Int> Bresenham(Vector2Int start, Vector2Int end)
+        List<Vector2Int> output = new List<Vector2Int>();
+
+        int dx = end.x - start.x;
+        // If dx is negative, flip the line
+        if (dx < 0)
+            return Bresenham(end, start);
+
+        int dy = end.y - start.y;
+        // If dy is negative, line goes up. 
+        if (dy < 0)
+            return NegY(Bresenham(NegY(start), NegY(end)));
+
+        // If dy > dx swap the axes.
+        if ((dy) > (dx))
+            return SwapXY(Bresenham(SwapXY(start), SwapXY(end)));
+
+        int ddx = 2 * dy;
+        int ddy = 2 * (dy - dx);
+        int p = 2 * dy - dx;
+
+        // Loop over the x-axis and calculate y-axis values.
+        for (int x = start.x, y = start.y; x <= end.x; x++)
         {
-            List<Vector2Int> output = new List<Vector2Int>();
-
-            int dx = end.x - start.x;
-            // If dx is negative, flip the line
-            if (dx < 0)
-                return Bresenham(end, start);
-
-            int dy = end.y - start.y;
-            // If dy is negative, line goes up. 
-            if (dy < 0)
-                return NegY(Bresenham(NegY(start), NegY(end)));
-
-            // If dy > dx swap the axes.
-            if ((dy) > (dx))
-                return SwapXY(Bresenham(SwapXY(start), SwapXY(end)));
-
-            int ddx = 2 * dy; 
-            int ddy = 2 * (dy - dx);
-            int p = 2 * dy - dx; 
-
-            // Loop over the x-axis and calculate y-axis values.
-            for (int x = start.x, y = start.y; x <= end.x; x++)
+            output.Add(new Vector2Int(x, y));
+            if (p < 0)
             {
-                output.Add(new Vector2Int(x, y));
-                if (p < 0)
-                {
-                    p += ddx; // Move to next pixel on the right
-                }
-                else
-                {
-                    p += ddy; // Move to next pixel diagonal
-                    y++;
-                }
+                p += ddx; // Move to next pixel on the right
             }
-            return output;
+            else
+            {
+                p += ddy; // Move to next pixel diagonal
+                y++;
+            }
         }
+        return output;
+    }
 
-        private List<Vector2Int> SwapXY(List<Vector2Int> vector2Ints)
-        {
-            List<Vector2Int> output = new List<Vector2Int>();
-            foreach (Vector2Int v in vector2Ints)
-                output.Add(SwapXY(v));
+    private List<Vector2Int> SwapXY(List<Vector2Int> vector2Ints)
+    {
+        List<Vector2Int> output = new List<Vector2Int>();
+        foreach (Vector2Int v in vector2Ints)
+            output.Add(SwapXY(v));
 
-            return output;
-        }
+        return output;
+    }
 
-        private List<Vector2Int> NegY(List<Vector2Int> vector2Ints)
-        {
-            List<Vector2Int> output = new List<Vector2Int>();
-            foreach (Vector2Int v in vector2Ints)
-                output.Add(NegY(v));
+    private List<Vector2Int> NegY(List<Vector2Int> vector2Ints)
+    {
+        List<Vector2Int> output = new List<Vector2Int>();
+        foreach (Vector2Int v in vector2Ints)
+            output.Add(NegY(v));
 
-            return output;
-        }
+        return output;
+    }
 
-        // For negative slopes
-        private Vector2Int NegY(Vector2Int point)
-        {
-            return new Vector2Int(point.x, -point.y);
-        }
-
-        
-
-        // Swap x and y for lines where slope > 1
-        private Vector2Int SwapXY(Vector2Int point)
-        {
-            return new Vector2Int(point.y, point.x);
-        }
+    // For negative slopes
+    private Vector2Int NegY(Vector2Int point)
+    {
+        return new Vector2Int(point.x, -point.y);
     }
 
 
+
+    // Swap x and y for lines where slope > 1
+    private Vector2Int SwapXY(Vector2Int point)
+    {
+        return new Vector2Int(point.y, point.x);
+    }
+
+    public void DrawLineOnTexture(List<Vector2Int> linePoints, Texture2D texture, UnityEngine.Color color)
+    {
+        foreach (Vector2Int point in linePoints)
+        {
+            texture.SetPixel(point.x, point.y, color);
+        }
+        texture.Apply();
+
+    }
 
     private List<Vector4> ConvertToHomg(List<Vector3> vertices)
     {
@@ -283,16 +361,16 @@ public class GraphicsPipeline : MonoBehaviour
         { print(rotationMatrix.GetRow(i)); }
     }
     private void SaveMatrixToFile(Matrix4x4 matrix, string filePath)
+    {
+        using (StreamWriter writer = new StreamWriter(filePath))
         {
-            using (StreamWriter writer = new StreamWriter(filePath))
+            for (int i = 0; i < 4; i++)
             {
-                for (int i = 0; i < 4; i++)
-                {
-                    Vector4 row = matrix.GetRow(i);
-                    writer.WriteLine($"{row.x}, {row.y}, {row.z}, {row.w}");
-                }
+                Vector4 row = matrix.GetRow(i);
+                writer.WriteLine($"{row.x}, {row.y}, {row.z}, {row.w}");
             }
         }
+    }
 
     private void SaveVector4ListToFile(List<Vector4> vectorList, string filePath)
     {
@@ -303,14 +381,5 @@ public class GraphicsPipeline : MonoBehaviour
                 writer.WriteLine($"{vector.x}, {vector.y}, {vector.z}, {vector.w}");
             }
         }
-    }
-
-
-
-
-    // Update is called once per frame
-    void Update()
-    {
-
     }
 }
