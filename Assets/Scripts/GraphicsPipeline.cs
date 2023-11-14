@@ -14,9 +14,15 @@ public class GraphicsPipeline : MonoBehaviour
     int textureWidth = 255;
     int textureHeight = 255;
 
+    Model myModel = new Model();
+
+    // Set the color for the line
+    UnityEngine.Color lineColour = UnityEngine.Color.red;
+
+    float angle = 0;
+
     // Start is called before the first frame update
-    public
-    void Start()
+    public void Start()
     {
         ourScreen = FindObjectOfType<Renderer>();
 
@@ -87,64 +93,65 @@ public class GraphicsPipeline : MonoBehaviour
 
         List<Vector2Int> linePoints = Bresenham(start, end);
 
-
-
-        // Draw the line on the texture
-        DrawLineOnTexture(linePoints, lineDrawnTexture, lineColor);
     }
 
     void Update()
     {
+        angle++;
+
         Matrix4x4 matrixViewing = Matrix4x4.LookAt(new Vector3(0, 0, 10), new Vector3(0, 0, 0), new Vector3(0, 1, 0));
         Matrix4x4 matrixProjection = Matrix4x4.Perspective(90, ((float)textureWidth / (float)textureHeight), 1, 1000);
-        Matrix4x4 matrixWorld = Matrix4x4.identity;
+        Matrix4x4 matrixWorld = Matrix4x4.TRS(Vector3.zero, Quaternion.AngleAxis(angle, Vector3.one.normalized), Vector3.one);
 
-        Model myModel = new Model();
+        
         List<Vector4> verts = ConvertToHomg(myModel.vertices);
 
         // Multiply in reverse order, points are multiplied on the right, A * v
         Matrix4x4 matrixSuper = matrixProjection * matrixViewing * matrixWorld;
 
-        List<Vector4> transformedVerts = divideByZ(ApplyTransformation(verts, matrixSuper));
+        List<Vector4> transformedVerts = DivideByZ(ApplyTransformation(verts, matrixSuper));
 
-        List<Vector2Int> pixelPoints = pixelise(transformedVerts, textureWidth, textureHeight);
-
+        // List<Vector2Int> pixelPoints = pixelise(transformedVerts, textureWidth, textureHeight);
 
 
         Texture2D lineDrawnTexture = new Texture2D(textureWidth, textureHeight);
 
         ourScreen.material.mainTexture = lineDrawnTexture;
-
-        // Set the color for the line
-        UnityEngine.Color lineColor = UnityEngine.Color.red;
-
         foreach (Vector3Int face in myModel.faces)
         {
-            clipandPlot(pixelPoints[face.x], pixelPoints[face.y],lineDrawnTexture);
+            ClipAndPlot(transformedVerts[face.x], transformedVerts[face.y],lineDrawnTexture);
+            ClipAndPlot(transformedVerts[face.y], transformedVerts[face.z], lineDrawnTexture);
+            ClipAndPlot(transformedVerts[face.z], transformedVerts[face.x], lineDrawnTexture);
+
+        }
+
+    }
+
+    //Converted to pixels before clipping
+    private void ClipAndPlot(Vector4 startIn, Vector4 endIn, Texture2D lineDrawnTexture)
+    { 
+        Vector2 start = new Vector2(startIn.x, startIn.y);
+        Vector2 end = new Vector2(endIn.x, endIn.y);
+        if (LineClip(ref start, ref end))
+        {
+           List<Vector2Int> pixels = Bresenham(Pixelise(start, textureWidth, textureHeight), Pixelise(end, textureWidth, textureHeight));
+
+            DrawLineOnTexture(pixels, lineDrawnTexture, lineColour);
         }
     }
 
-    //Converted to pixels before clipping. FIX
-    private void clipandPlot(Vector2Int startIn, Vector2Int endIn, Texture2D lineDrawnTexture)
-    { Vector2Int start = startIn;
-        Vector2Int end = endIn;
-        if (LineClip(ref start,ref end))
-
-
-    }
-
-    private List<Vector2Int> pixelise(List<Vector4> transformedVerts, int textureWidth, int textureHeight)
+    private List<Vector2Int> Pixelise(List<Vector4> transformedVerts, int textureWidth, int textureHeight)
     {
         List<Vector2Int> output = new List<Vector2Int>();
         foreach (Vector4 v in transformedVerts)
         {
-            output.Add(pixelise(v, textureWidth, textureHeight));
+            output.Add(Pixelise(v, textureWidth, textureHeight));
         }
 
         return output;
     }
 
-    private Vector2Int pixelise(Vector4 v, int textureWidth, int textureHeight)
+    private Vector2Int Pixelise(Vector2 v, int textureWidth, int textureHeight)
     {
         int x = (int )((textureWidth - 1) * (v.x + 1) / 2);
         int y = (int)((textureHeight - 1) * (v.y + 1) / 2);
@@ -152,7 +159,7 @@ public class GraphicsPipeline : MonoBehaviour
     }
 
     //
-    private List<Vector4> divideByZ(List<Vector4> vector4s)
+    private List<Vector4> DivideByZ(List<Vector4> vector4s)
     {
         List<Vector4> output = new List<Vector4>();
 
