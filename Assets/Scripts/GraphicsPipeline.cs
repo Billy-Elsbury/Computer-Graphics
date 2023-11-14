@@ -24,6 +24,9 @@ public class GraphicsPipeline : MonoBehaviour
     // Start is called before the first frame update
     public void Start()
     {
+        Vector2 s1 = new Vector2(-0.09f, 0.61f), e1 = new Vector2(-1.11f, -1.69f);
+        LineClip(ref s1,ref e1);
+
         ourScreen = FindObjectOfType<Renderer>();
 
         Model myModel = new Model();
@@ -102,6 +105,7 @@ public class GraphicsPipeline : MonoBehaviour
         Matrix4x4 matrixViewing = Matrix4x4.LookAt(new Vector3(0, 0, 10), new Vector3(0, 0, 0), new Vector3(0, 1, 0));
         Matrix4x4 matrixProjection = Matrix4x4.Perspective(90, ((float)textureWidth / (float)textureHeight), 1, 1000);
         Matrix4x4 matrixWorld = Matrix4x4.TRS(Vector3.zero, Quaternion.AngleAxis(angle, Vector3.one.normalized), Vector3.one);
+        matrixWorld = matrixWorld * Matrix4x4.TRS(new Vector3(0, 0, 5), Quaternion.identity, Vector3.one);
 
         
         List<Vector4> verts = ConvertToHomg(myModel.vertices);
@@ -114,7 +118,10 @@ public class GraphicsPipeline : MonoBehaviour
         // List<Vector2Int> pixelPoints = pixelise(transformedVerts, textureWidth, textureHeight);
 
 
+
         Texture2D lineDrawnTexture = new Texture2D(textureWidth, textureHeight);
+
+        Destroy(ourScreen.material.mainTexture);
 
         ourScreen.material.mainTexture = lineDrawnTexture;
         foreach (Vector3Int face in myModel.faces)
@@ -125,6 +132,7 @@ public class GraphicsPipeline : MonoBehaviour
 
         }
 
+        lineDrawnTexture.Apply();
     }
 
     //Converted to pixels before clipping
@@ -137,6 +145,13 @@ public class GraphicsPipeline : MonoBehaviour
            List<Vector2Int> pixels = Bresenham(Pixelise(start, textureWidth, textureHeight), Pixelise(end, textureWidth, textureHeight));
 
             DrawLineOnTexture(pixels, lineDrawnTexture, lineColour);
+        }
+
+        else
+        {
+            print(start);
+            print(end);
+
         }
     }
 
@@ -187,7 +202,7 @@ public class GraphicsPipeline : MonoBehaviour
         //if the code gets to here only concerned with clipping start
         if (startOutcode == viewportOutcode) return LineClip(ref endPoint, ref startPoint);
 
-        if (startOutcode == new Outcode(true, false, false, false))
+        if (startOutcode.up)
         {
             Vector2 hold = LineIntercept(startPoint, endPoint, "up");
             if (new Outcode(hold) == viewportOutcode)
@@ -196,7 +211,7 @@ public class GraphicsPipeline : MonoBehaviour
                 return LineClip(ref endPoint, ref startPoint);
             }
         }
-        if (startOutcode == new Outcode(false, true, false, false))
+        if (startOutcode.down)
         {
             Vector2 hold = LineIntercept(startPoint, endPoint, "down");
             if (new Outcode(hold) == viewportOutcode)
@@ -205,7 +220,7 @@ public class GraphicsPipeline : MonoBehaviour
                 return LineClip(ref endPoint, ref startPoint);
             }
         }
-        if (startOutcode == new Outcode(false, false, true, false))
+        if (startOutcode.left)
         {
             Vector2 hold = LineIntercept(startPoint, endPoint, "left");
             if (new Outcode(hold) == viewportOutcode)
@@ -214,7 +229,7 @@ public class GraphicsPipeline : MonoBehaviour
                 return LineClip(ref endPoint, ref startPoint);
             }
         }
-        if (startOutcode == new Outcode(false, false, false, true))
+        if (startOutcode.right)
         {
             Vector2 hold = LineIntercept(startPoint, endPoint, "right");
             if (new Outcode(hold) == viewportOutcode)
@@ -334,8 +349,7 @@ public class GraphicsPipeline : MonoBehaviour
         {
             texture.SetPixel(point.x, point.y, color);
         }
-        texture.Apply();
-
+        
     }
 
     private List<Vector4> ConvertToHomg(List<Vector3> vertices)

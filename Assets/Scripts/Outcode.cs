@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class Outcode
 {
-    bool up, down, left, right;
+    internal bool up, down, left, right;
 
     public Outcode(bool up, bool down, bool left, bool right)
     {
