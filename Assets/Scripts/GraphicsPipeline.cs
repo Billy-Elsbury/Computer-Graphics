@@ -22,6 +22,7 @@ public class GraphicsPipeline : MonoBehaviour
 
 
     float angle = 0;
+    private UnityEngine.Color backgroundColour;
 
     // Start is called before the first frame update
     public void Start()
@@ -121,30 +122,42 @@ public class GraphicsPipeline : MonoBehaviour
 
 
 
-        Texture2D lineDrawnTexture = new Texture2D(textureWidth, textureHeight);
+        Texture2D screenTexture = new Texture2D(textureWidth, textureHeight);
+        print (screenTexture.GetPixel(10, 10));
+
+        backgroundColour = screenTexture.GetPixel(10, 10);
 
         Destroy(ourScreen.material.mainTexture);
 
-        ourScreen.material.mainTexture = lineDrawnTexture;
+        ourScreen.material.mainTexture = screenTexture;
         foreach (Vector3Int face in myModel.faces)
         {
 
             if (!ShouldCull(transformedVerts[face.x], transformedVerts[face.y], transformedVerts[face.z])) 
             {
-            ClipAndPlot(transformedVerts[face.x], transformedVerts[face.y],lineDrawnTexture);
-            ClipAndPlot(transformedVerts[face.y], transformedVerts[face.z], lineDrawnTexture);
-            ClipAndPlot(transformedVerts[face.z], transformedVerts[face.x], lineDrawnTexture);
+            ClipAndPlot(transformedVerts[face.x], transformedVerts[face.y],screenTexture);
+            ClipAndPlot(transformedVerts[face.y], transformedVerts[face.z], screenTexture);
+            ClipAndPlot(transformedVerts[face.z], transformedVerts[face.x], screenTexture);
+
+            FloodFill(averagePosition(transformedVerts[face.x], transformedVerts[face.y], transformedVerts[face.z]), fillColour, screenTexture);
             }
         }
 
-        lineDrawnTexture.Apply();
+        screenTexture.Apply();
+    }
+
+    private Vector2Int averagePosition(Vector4 v1, Vector4 v2, Vector4 v3)
+    {
+        Vector4 average = (v1 + v2 + v3) / 3;
+
+        return new Vector2Int((int)average.x, (int)average.y);
     }
 
     // Flood fill algorithm
     void FloodFill(Vector2Int location, UnityEngine.Color fillColour, Texture2D screenTexture)
     {
         // Check bounds and if the pixel is not already filled
-        if (IsWithinBounds(location) && (screenTexture.GetPixel(location.x, location.y) == UnityEngine.Color.white))
+        if (IsWithinBounds(location) && (screenTexture.GetPixel(location.x, location.y) == backgroundColour))
         {
             screenTexture.SetPixel(location.x, location.y, fillColour);  // Set the pixel color
 
@@ -159,7 +172,7 @@ public class GraphicsPipeline : MonoBehaviour
     // Method to check if a location is within screen border
     bool IsWithinBounds(Vector2Int location)
     {
-        return location.x >= 0 && location.x < textureWidth && location.y >= 0 && location.y < textureHeight;
+        return (location.x >= 0) && (location.x < textureWidth) && (location.y >= 0) && (location.y < textureHeight);
     }
 
    
