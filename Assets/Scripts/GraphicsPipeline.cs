@@ -32,7 +32,7 @@ public class GraphicsPipeline : MonoBehaviour
         Model myModel = new Model();
         List<Vector4> verts = ConvertToHomg(myModel.vertices);
 
-        myModel.CreateUnityGameObject();
+       // myModel.CreateUnityGameObject();
         Vector3 axis = (new Vector3(-2, 1, 1)).normalized;
 
         Matrix4x4 matrixRotation = Matrix4x4.TRS(Vector3.zero, Quaternion.AngleAxis(17, axis), Vector3.one);
@@ -126,13 +126,25 @@ public class GraphicsPipeline : MonoBehaviour
         ourScreen.material.mainTexture = lineDrawnTexture;
         foreach (Vector3Int face in myModel.faces)
         {
+
+            if (!ShouldCull(transformedVerts[face.x], transformedVerts[face.y], transformedVerts[face.z])) 
+            {
             ClipAndPlot(transformedVerts[face.x], transformedVerts[face.y],lineDrawnTexture);
             ClipAndPlot(transformedVerts[face.y], transformedVerts[face.z], lineDrawnTexture);
             ClipAndPlot(transformedVerts[face.z], transformedVerts[face.x], lineDrawnTexture);
-
+            }
         }
 
         lineDrawnTexture.Apply();
+    }
+
+    private bool ShouldCull(Vector4 vert1, Vector4 vert2, Vector4 vert3)
+    {
+        Vector3 v1 = new Vector3(vert1.x, vert1.y, 0);
+        Vector3 v2 = new Vector3(vert2.x, vert2.y, 0);
+        Vector3 v3 = new Vector3(vert3.x, vert3.y, 0);
+
+        return (Vector3.Cross(v2 - v1, v3 - v2).z <= 0);
     }
 
     //Converted to pixels before clipping
@@ -140,18 +152,12 @@ public class GraphicsPipeline : MonoBehaviour
     { 
         Vector2 start = new Vector2(startIn.x, startIn.y);
         Vector2 end = new Vector2(endIn.x, endIn.y);
+
         if (LineClip(ref start, ref end))
         {
            List<Vector2Int> pixels = Bresenham(Pixelise(start, textureWidth, textureHeight), Pixelise(end, textureWidth, textureHeight));
 
             DrawLineOnTexture(pixels, lineDrawnTexture, lineColour);
-        }
-
-        else
-        {
-            print(start);
-            print(end);
-
         }
     }
 
