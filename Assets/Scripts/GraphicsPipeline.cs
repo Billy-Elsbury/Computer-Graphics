@@ -18,6 +18,8 @@ public class GraphicsPipeline : MonoBehaviour
 
     // Set the color for the line
     UnityEngine.Color lineColour = UnityEngine.Color.red;
+    UnityEngine.Color fillColour = UnityEngine.Color.cyan;
+
 
     float angle = 0;
 
@@ -136,6 +138,36 @@ public class GraphicsPipeline : MonoBehaviour
         }
 
         lineDrawnTexture.Apply();
+    }
+
+    // Flood fill algorithm
+    void FloodFill(Vector2Int location, UnityEngine.Color fillColour, Texture2D screenTexture)
+    {
+        // Check bounds and if the pixel is not already filled
+        if (IsWithinBounds(location) && (screenTexture.GetPixel(location.x, location.y) == UnityEngine.Color.white))
+        {
+            screenTexture.SetPixel(location.x, location.y, fillColour);  // Set the pixel color
+
+            // Recursive calls for adjacent pixels
+            FloodFill(new Vector2Int(location.x + 1, location.y), fillColour, screenTexture);
+            FloodFill(new Vector2Int(location.x - 1, location.y), fillColour, screenTexture);
+            FloodFill(new Vector2Int(location.x, location.y + 1), fillColour, screenTexture);
+            FloodFill(new Vector2Int(location.x, location.y - 1), fillColour, screenTexture);
+        }
+    }
+
+    // Method to check if a location is within screen border
+    bool IsWithinBounds(Vector2Int location)
+    {
+        return location.x >= 0 && location.x < textureWidth && location.y >= 0 && location.y < textureHeight;
+    }
+
+   
+
+    // Method to set a pixel's color
+    void SetPixel(Vector2Int location, UnityEngine.Color color)
+    {
+        (ourScreen.material.mainTexture as Texture2D).SetPixel(location.x, location.y, color);
     }
 
     private bool ShouldCull(Vector4 vert1, Vector4 vert2, Vector4 vert3)
