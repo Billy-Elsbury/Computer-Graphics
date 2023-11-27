@@ -11,8 +11,8 @@ public class GraphicsPipeline : MonoBehaviour
 {
     Renderer ourScreen;
 
-    int textureWidth = 255;
-    int textureHeight = 255;
+    int textureWidth = 256;
+    int textureHeight = 256;
 
     Model myModel = new Model();
 
@@ -99,6 +99,14 @@ public class GraphicsPipeline : MonoBehaviour
 
         List<Vector2Int> linePoints = Bresenham(start, end);
 
+
+        //for (int i = 0; i < textureWidth; i++)
+        //{
+        //    for (int j = 0; j < textureHeight; j++)
+        //    {
+        //        frameBuffer[i, j] = false; // Initilise pixels to off
+        //    }
+        //}
     }
 
     void Update()
@@ -118,7 +126,7 @@ public class GraphicsPipeline : MonoBehaviour
 
         List<Vector4> transformedVerts = DivideByZ(ApplyTransformation(verts, matrixSuper));
 
-        // List<Vector2Int> pixelPoints = pixelise(transformedVerts, textureWidth, textureHeight);
+        List<Vector2Int> pixelPoints = Pixelise(transformedVerts, textureWidth, textureHeight);
 
 
 
@@ -130,16 +138,20 @@ public class GraphicsPipeline : MonoBehaviour
         Destroy(ourScreen.material.mainTexture);
 
         ourScreen.material.mainTexture = screenTexture;
+
+        bool[,] frameBuffer = new bool[textureWidth, textureHeight];
+
+
         foreach (Vector3Int face in myModel.faces)
         {
 
             if (!ShouldCull(transformedVerts[face.x], transformedVerts[face.y], transformedVerts[face.z])) 
             {
-            ClipAndPlot(transformedVerts[face.x], transformedVerts[face.y],screenTexture);
-            ClipAndPlot(transformedVerts[face.y], transformedVerts[face.z], screenTexture);
-            ClipAndPlot(transformedVerts[face.z], transformedVerts[face.x], screenTexture);
+            ClipAndPlot(transformedVerts[face.x], transformedVerts[face.y], screenTexture, ref frameBuffer);
+            ClipAndPlot(transformedVerts[face.y], transformedVerts[face.z], screenTexture, ref frameBuffer);
+            ClipAndPlot(transformedVerts[face.z], transformedVerts[face.x], screenTexture, ref frameBuffer);
 
-            FloodFill(averagePosition(transformedVerts[face.x], transformedVerts[face.y], transformedVerts[face.z]), fillColour, screenTexture);
+            FloodFill(averagePosition(transformedVerts[face.x], transformedVerts[face.y], transformedVerts[face.z]), fillColour, screenTexture, ref frameBuffer);
             }
         }
 
@@ -150,24 +162,34 @@ public class GraphicsPipeline : MonoBehaviour
     {
         Vector4 average = (v1 + v2 + v3) / 3;
 
-        return new Vector2Int((int)average.x, (int)average.y);
+        return Pixelise(average, textureWidth, textureHeight);
     }
 
     // Flood fill algorithm
-    void FloodFill(Vector2Int location, UnityEngine.Color fillColour, Texture2D screenTexture)
+    void FloodFill(Vector2Int startLocation, UnityEngine.Color fillColour, Texture2D screenTexture, ref bool[,] frameBuffer)
     {
-        // Check bounds and if the pixel is not already filled
-        if (IsWithinBounds(location) && (screenTexture.GetPixel(location.x, location.y) == backgroundColour))
-        {
-            screenTexture.SetPixel(location.x, location.y, fillColour);  // Set the pixel color
+        Stack<Vector2Int> stack = new Stack<Vector2Int>();
+        stack.Push(startLocation);
 
-            // Recursive calls for adjacent pixels
-            FloodFill(new Vector2Int(location.x + 1, location.y), fillColour, screenTexture);
-            FloodFill(new Vector2Int(location.x - 1, location.y), fillColour, screenTexture);
-            FloodFill(new Vector2Int(location.x, location.y + 1), fillColour, screenTexture);
-            FloodFill(new Vector2Int(location.x, location.y - 1), fillColour, screenTexture);
+        while (stack.Count > 0)
+        {
+            Vector2Int location = stack.Pop();
+
+            if (!IsWithinBounds(location) || frameBuffer[location.x, location.y])
+            {
+                continue;
+            }
+
+            SetPixel(location, fillColour, ref frameBuffer);
+
+            // Add adjacent pixels to the stack
+            stack.Push(new Vector2Int(location.x + 1, location.y));
+            stack.Push(new Vector2Int(location.x - 1, location.y));
+            stack.Push(new Vector2Int(location.x, location.y + 1));
+            stack.Push(new Vector2Int(location.x, location.y - 1));
         }
     }
+
 
     // Method to check if a location is within screen border
     bool IsWithinBounds(Vector2Int location)
@@ -175,12 +197,13 @@ public class GraphicsPipeline : MonoBehaviour
         return (location.x >= 0) && (location.x < textureWidth) && (location.y >= 0) && (location.y < textureHeight);
     }
 
-   
+
 
     // Method to set a pixel's color
-    void SetPixel(Vector2Int location, UnityEngine.Color color)
+    void SetPixel(Vector2Int location, UnityEngine.Color color, ref bool[,] frameBuffer)
     {
         (ourScreen.material.mainTexture as Texture2D).SetPixel(location.x, location.y, color);
+        frameBuffer[location.x, location.y] = true;
     }
 
     private bool ShouldCull(Vector4 vert1, Vector4 vert2, Vector4 vert3)
@@ -193,7 +216,7 @@ public class GraphicsPipeline : MonoBehaviour
     }
 
     //Converted to pixels before clipping
-    private void ClipAndPlot(Vector4 startIn, Vector4 endIn, Texture2D lineDrawnTexture)
+    private void ClipAndPlot(Vector4 startIn, Vector4 endIn, Texture2D lineDrawnTexture, ref bool[,] frameBuffer)
     { 
         Vector2 start = new Vector2(startIn.x, startIn.y);
         Vector2 end = new Vector2(endIn.x, endIn.y);
@@ -202,7 +225,7 @@ public class GraphicsPipeline : MonoBehaviour
         {
            List<Vector2Int> pixels = Bresenham(Pixelise(start, textureWidth, textureHeight), Pixelise(end, textureWidth, textureHeight));
 
-            DrawLineOnTexture(pixels, lineDrawnTexture, lineColour);
+            DrawLineOnTexture(pixels, lineDrawnTexture, lineColour, ref frameBuffer);
         }
     }
 
@@ -394,11 +417,13 @@ public class GraphicsPipeline : MonoBehaviour
         return new Vector2Int(point.y, point.x);
     }
 
-    public void DrawLineOnTexture(List<Vector2Int> linePoints, Texture2D texture, UnityEngine.Color color)
+    public void DrawLineOnTexture(List<Vector2Int> linePoints, Texture2D texture, UnityEngine.Color color, ref bool[,] frameBuffer)
     {
         foreach (Vector2Int point in linePoints)
         {
+            SetPixel(point, color, ref frameBuffer); ;
             texture.SetPixel(point.x, point.y, color);
+
         }
         
     }
