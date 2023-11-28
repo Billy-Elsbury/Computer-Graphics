@@ -19,7 +19,11 @@ public class GraphicsPipeline : MonoBehaviour
     // Set the color for the line
     UnityEngine.Color lineColour = UnityEngine.Color.red;
     UnityEngine.Color fillColour = UnityEngine.Color.cyan;
+    UnityEngine.Color lightColor = UnityEngine.Color.blue;
 
+
+    Vector3 lightDirection = new Vector3(1, -1, 1).normalized; // example direction
+    float lightIntensity = 1.0f; // full intensity
 
     float angle = 0;
     private UnityEngine.Color backgroundColour;
@@ -28,14 +32,14 @@ public class GraphicsPipeline : MonoBehaviour
     public void Start()
     {
         Vector2 s1 = new Vector2(-0.09f, 0.61f), e1 = new Vector2(-1.11f, -1.69f);
-        LineClip(ref s1,ref e1);
+        LineClip(ref s1, ref e1);
 
         ourScreen = FindObjectOfType<Renderer>();
 
         Model myModel = new Model();
         List<Vector4> verts = ConvertToHomg(myModel.vertices);
 
-       // myModel.CreateUnityGameObject();
+        // myModel.CreateUnityGameObject();
         Vector3 axis = (new Vector3(-2, 1, 1)).normalized;
 
         Matrix4x4 matrixRotation = Matrix4x4.TRS(Vector3.zero, Quaternion.AngleAxis(17, axis), Vector3.one);
@@ -99,14 +103,6 @@ public class GraphicsPipeline : MonoBehaviour
 
         List<Vector2Int> linePoints = Bresenham(start, end);
 
-
-        //for (int i = 0; i < textureWidth; i++)
-        //{
-        //    for (int j = 0; j < textureHeight; j++)
-        //    {
-        //        frameBuffer[i, j] = false; // Initilise pixels to off
-        //    }
-        //}
     }
 
     void Update()
@@ -118,7 +114,7 @@ public class GraphicsPipeline : MonoBehaviour
         Matrix4x4 matrixWorld = Matrix4x4.TRS(Vector3.zero, Quaternion.AngleAxis(angle, Vector3.one.normalized), Vector3.one);
         matrixWorld = matrixWorld * Matrix4x4.TRS(new Vector3(0, 0, 5), Quaternion.identity, Vector3.one);
 
-        
+
         List<Vector4> verts = ConvertToHomg(myModel.vertices);
 
         // Multiply in reverse order, points are multiplied on the right, A * v
@@ -131,7 +127,7 @@ public class GraphicsPipeline : MonoBehaviour
 
 
         Texture2D screenTexture = new Texture2D(textureWidth, textureHeight);
-        print (screenTexture.GetPixel(10, 10));
+        print(screenTexture.GetPixel(10, 10));
 
         backgroundColour = screenTexture.GetPixel(10, 10);
 
@@ -145,17 +141,65 @@ public class GraphicsPipeline : MonoBehaviour
         foreach (Vector3Int face in myModel.faces)
         {
 
-            if (!ShouldCull(transformedVerts[face.x], transformedVerts[face.y], transformedVerts[face.z])) 
+            if (!ShouldCull(transformedVerts[face.x], transformedVerts[face.y], transformedVerts[face.z]))
             {
-            ClipAndPlot(transformedVerts[face.x], transformedVerts[face.y], screenTexture, ref frameBuffer);
-            ClipAndPlot(transformedVerts[face.y], transformedVerts[face.z], screenTexture, ref frameBuffer);
-            ClipAndPlot(transformedVerts[face.z], transformedVerts[face.x], screenTexture, ref frameBuffer);
+                Vector2Int total = new Vector2Int(0, 0);
+                int count = 0;
 
-            FloodFill(averagePosition(transformedVerts[face.x], transformedVerts[face.y], transformedVerts[face.z]), fillColour, screenTexture, ref frameBuffer);
+
+                Vector2Int v = ClipAndPlot(transformedVerts[face.x], transformedVerts[face.y], screenTexture, ref frameBuffer);
+                if (v.x >= 0)
+                {
+                    total = new Vector2Int(total.x + v.x, total.y + v.y);
+                    count++;
+                }
+
+                Vector2Int v1 = ClipAndPlot(transformedVerts[face.y], transformedVerts[face.z], screenTexture, ref frameBuffer);
+                if (v1.x >= 0)
+                {
+                    total = new Vector2Int(total.x + v1.x, total.y + v1.y);
+                    count++;
+                }
+
+                Vector2Int v2 = ClipAndPlot(transformedVerts[face.z], transformedVerts[face.x], screenTexture, ref frameBuffer);
+                if (v2.x >= 0)
+                {
+                    total = new Vector2Int(total.x + v2.x, total.y + v2.y);
+                    count++;
+                }
+
+
+                if (count > 0)
+                {
+                    FloodFill(averagePosition(total, count), fillColour, screenTexture, ref frameBuffer);
+                    //if result not in viewport do some work, weight towards point that is in viewport
+                    // new method weightedAverage() 
+                }
             }
         }
 
+        foreach (Vector3Int face in myModel.faces)
+        {
+            // Calculate the normal of the face
+            Vector3 v0 = transformedVerts[face.x];
+            Vector3 v1 = transformedVerts[face.y];
+            Vector3 v2 = transformedVerts[face.z];
+            Vector3 normal = Vector3.Cross(v1 - v0, v2 - v0).normalized;
+
+            // Calculate the dot product between the normal and light direction
+            float dot = Mathf.Max(Vector3.Dot(normal, lightDirection), 0);
+            UnityEngine.Color faceColor = lightColor * dot * lightIntensity;
+
+            // Apply lighting to face color
+            // ... [rest of your code for rendering the face]
+        }
+
         screenTexture.Apply();
+    }
+
+    private Vector2Int averagePosition(Vector2Int total, int count)
+    {
+        return new Vector2Int(total.x / count, total.y / count);
     }
 
     private Vector2Int averagePosition(Vector4 v1, Vector4 v2, Vector4 v3)
@@ -216,17 +260,25 @@ public class GraphicsPipeline : MonoBehaviour
     }
 
     //Converted to pixels before clipping
-    private void ClipAndPlot(Vector4 startIn, Vector4 endIn, Texture2D lineDrawnTexture, ref bool[,] frameBuffer)
-    { 
+
+    //weight towards
+    private Vector2Int ClipAndPlot(Vector4 startIn, Vector4 endIn, Texture2D lineDrawnTexture, ref bool[,] frameBuffer)
+    {
+        Vector2Int output = new Vector2Int(-1, -1);
+
         Vector2 start = new Vector2(startIn.x, startIn.y);
         Vector2 end = new Vector2(endIn.x, endIn.y);
 
         if (LineClip(ref start, ref end))
         {
-           List<Vector2Int> pixels = Bresenham(Pixelise(start, textureWidth, textureHeight), Pixelise(end, textureWidth, textureHeight));
+            output = Pixelise((start + end) / 2, textureWidth, textureHeight);
+
+            List<Vector2Int> pixels = Bresenham(Pixelise(start, textureWidth, textureHeight), Pixelise(end, textureWidth, textureHeight));
 
             DrawLineOnTexture(pixels, lineDrawnTexture, lineColour, ref frameBuffer);
         }
+
+        return output;
     }
 
     private List<Vector2Int> Pixelise(List<Vector4> transformedVerts, int textureWidth, int textureHeight)
@@ -242,9 +294,9 @@ public class GraphicsPipeline : MonoBehaviour
 
     private Vector2Int Pixelise(Vector2 v, int textureWidth, int textureHeight)
     {
-        int x = (int )((textureWidth - 1) * (v.x + 1) / 2);
+        int x = (int)((textureWidth - 1) * (v.x + 1) / 2);
         int y = (int)((textureHeight - 1) * (v.y + 1) / 2);
-        return new Vector2Int( x,y );
+        return new Vector2Int(x, y);
     }
 
     //
@@ -252,7 +304,7 @@ public class GraphicsPipeline : MonoBehaviour
     {
         List<Vector4> output = new List<Vector4>();
 
-        foreach (Vector4 v in vector4s) 
+        foreach (Vector4 v in vector4s)
         {
             output.Add(new Vector4(v.x / v.w, v.y / v.w, v.z, v.w));
         }
@@ -425,7 +477,7 @@ public class GraphicsPipeline : MonoBehaviour
             texture.SetPixel(point.x, point.y, color);
 
         }
-        
+
     }
 
     private List<Vector4> ConvertToHomg(List<Vector3> vertices)
